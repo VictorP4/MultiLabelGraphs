@@ -11,7 +11,7 @@ import seaborn as sns
 import pandas as pd
 import math
 
-num_nodes = 10000
+num_nodes = 1000
 # Number of labels
 
 L = 10
