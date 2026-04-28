@@ -1,3 +1,5 @@
 .idea
 .venv
 .vscode
+checkpoint.pt
+**/__pycache__/

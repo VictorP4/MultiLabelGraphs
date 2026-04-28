@@ -39,7 +39,7 @@ def main():
     print(f"Running {len(runs)} configs -> {args.output}")
 
     # Paper Table 7: GCN/GAT/GraphSAGE use lr=0.01; H2GCN on synthetic uses lr=0.001
-    lr_per_model = {'GCN': 0.01, 'H2GCN': 0.001}
+    lr_per_model = {'GCN': 0.01, 'H2GCN': 0.01}
 
     for i, (model_name, data_dir, seed) in enumerate(runs, 1):
         tag = f"{model_name} | {os.path.basename(os.path.normpath(data_dir))} | seed={seed}"
