@@ -183,6 +183,37 @@ The paper observes this variation extensively but never tests it as an independe
 
 ---
 
+## Experiment 8 (observational): CCNS via PRNG-induced variance
+
+**Goal**: Test whether Cross-Class Neighborhood Similarity (CCNS) — the paper's own second-order label-similarity metric — predicts model performance once label homophily is held fixed.
+
+**Motivation**: The paper introduces CCNS (Definition 2 / Eq. 1) and visualizes CCNS matrices for every dataset (Figs. 2, 4, 5). It argues informally that high diagonal-vs-off-diagonal contrast helps GNNs (DBLP) and low contrast hurts them (BlogCat), but never tests CCNS as an independent variable. A natural follow-up: does CCNS contrast explain residual variance in model performance after controlling for h?
+
+A *controlled* CCNS sweep is infeasible — CCNS is mechanistically coupled to h in SDA (similar-label pairs become neighbors → their neighborhoods look alike). Instead, we treat PRNG seed as a stochastic instrument: across seeds at fixed (|F|, |C|, h_target, label_noise), the realized (h, density, l_mean, CCNS) tuple is a *distribution*. CCNS varies across seeds because sphere placement is stochastic and label co-occurrence patterns are sensitive to which spheres land near each other.
+
+**Setup**:
+- *Pilot* (no training): generate 30 datasets+graphs at one config (e.g., |F|=10, |C|=20, h_target=0.4, label_noise=0.05) with seeds 0–29. Compute the CCNS scalar `mean_diag − mean_offdiag` per graph (uses existing `ccns` in `generators/properties.py`). Pre-condition for proceeding: CCNS interquartile range ≥ 10% of its median.
+- *Main*: generate 100–200 seeds at 1–2 configs. Filter to keep only seeds where actual_h, density, and l_mean fall in tight bands. Stratify on the CCNS scalar; pick 4–5 graphs per config spanning the CCNS quartiles. Train GCN/H2GCN × 3 seeds each.
+
+**Runs**: pilot = 0 training runs. Main = 4–5 graphs × 1–2 configs × 2 models × 3 seeds = **24–60** (conditional on pilot succeeding).
+
+**Hypothesis**:
+1. After conditioning on h, CCNS contrast positively correlates with model AP.
+2. The correlation is stronger for GCN than for H2GCN, because H2GCN's ego separation reduces its reliance on neighborhood-distribution contrast.
+3. The GCN–H2GCN gap widens as CCNS contrast decreases.
+
+**Why novel**: Validates the paper's *own* metric as an explanatory variable rather than just a descriptive one. No prior work uses PRNG-seed variance as a stochastic instrument to identify CCNS effects on multi-label graphs.
+
+**Real-world mapping**: CCNS scalar is already computed per real dataset in Exp 1. Each real dataset overlays directly onto the synthetic CCNS axis at its measured h band.
+
+**Caveats**:
+- **Observational, not causal.** The right framing is "across realizations of the same DGP, performance covaries with CCNS conditional on h." Do not claim CCNS *causes* performance differences.
+- **CCNS is a matrix.** The scalar summary must be committed to before stratifying, otherwise post-hoc metric selection is a real risk. Default: `mean_diag − mean_offdiag`.
+- **Tail-stratified selection.** Selected graphs are not iid samples; regression coefficients should be reported descriptively, not with naive p-values.
+- **Pilot can kill the experiment cheaply.** If CCNS variance at fixed config is small (<10% IQR/median), drop the experiment — a label-block generator would be required to revive it, and that's out of scope.
+
+---
+
 ## Summary
 
 | # | Experiment | Runs | Status | Property axis |
@@ -194,8 +225,9 @@ The paper observes this variation extensively but never tests it as an independe
 | 5 | Feature-label MI (center_spread) | 24 | Core | feature: MI |
 | 6 | Multi-label character (radius) | 24 | Core | label: l_mean |
 | 7 | Edge addition (mechanism check) | 30 | Optional | mechanism comparison |
+| 8 | CCNS via PRNG-induced variance | 24–60 | Observational | label: CCNS contrast (conditional on h) |
 
-**Total core (Exp 1–6)**: 192 runs (or 204 with the full 6-level Exp 2). **Including optional Exp 7**: 222–234 runs.
+**Total core (Exp 1–6)**: 192 runs (or 204 with the full 6-level Exp 2). **Including optional Exp 7 + observational Exp 8**: 246–294 runs.
 
 ---
 
@@ -204,6 +236,7 @@ The paper observes this variation extensively but never tests it as an independe
 - **SQ1 (structural)**: homophily (Exp 2) + clustering (Exp 4) → two independent structural axes
 - **SQ2 (feature)**: dimensions (Exp 3) + MI (Exp 5) → two feature axes
 - **Multi-label character** (defining property of the field): l_mean (Exp 6)
+- **Second-order label structure** (paper's own metric): CCNS (Exp 8, observational)
 - **SQ3 (method gap)**: tested across all five controlled axes
 - **SQ4 (real-world bridge)**: Exp 1 anchors; every controlled experiment has a measurable real-world axis for overlay
 
@@ -249,6 +282,7 @@ For transparency about scope decisions:
 | Dropped | Reason |
 |---|---|
 | Hypersphere geometry 2×2 factorial (original Exp 3) | Replaced by 1D `center_spread` sweep (Exp 5). Mldatagen sequential algorithm couples the two factorial dimensions, making independent attribution impossible. |
+| Controlled CCNS sweep (knob-style) | Replaced by Exp 8's PRNG-instrumented observational version. CCNS is mechanistically coupled to h in SDA — a clean knob would require a new label-block generator, which is out of scope. |
 | Edge removal | Falls under a separate sub-question / scope. |
 | Label noise | Training condition, not a graph or feature property. Outside the strict scope of the RQ. |
 | Label imbalance (skewed l-distribution) | Requires non-trivial generator changes. Bonus analysis on Exp 6's data captures most of the same signal. |

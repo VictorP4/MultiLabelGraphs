@@ -3,3 +3,4 @@
 .vscode
 checkpoint.pt
 **/__pycache__/
+paper/
